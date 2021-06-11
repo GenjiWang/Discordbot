@@ -8,6 +8,8 @@ import random
 from random import choice
 import asyncio
 
+intents=discord.Intents.all()
+
 
 youtube_dl.utils.bug_reports_message = lambda: ''
 
@@ -43,6 +45,7 @@ vocal_Congratulations=["D:/聲音樣本/恭喜1.wav","D:/聲音樣本/恭喜.wav
 voice_channel=0
 
 
+
 class YTDLSource(discord.PCMVolumeTransformer):
     def __init__(self, source, *, data):
         global value
@@ -70,42 +73,72 @@ def is_connected(ctx):
     return voice_client and voice_client.is_connected()
 
 
-client = commands.Bot(command_prefix=';;')
+client = commands.Bot(command_prefix=';;',intents=intents)
 
+@tasks.loop(seconds=20)
+async def change_status():
+    await client.change_presence(activity=discord.Game(choice(status)))
+
+@tasks.loop(seconds=1)
+async def get_time():
+    time_now = time.ctime()
+    time_now= time_now.split()
+    time_now1 = time_now[3]
+    if time_now1 == "22:00:00":
+        channel = client.get_channel(795483888532586528)
+        await channel.send('歐逆醬該去睡覺了\n<:miku_sleep:852886846119608340>')
+        channel = client.get_channel(839784321191772251)
+        await channel.send('歐逆醬該去睡覺了\n<:miku_sleep:852886846119608340>')
+    if time_now1 == "07:00:00":
+        channel = client.get_channel(795483888532586528)
+        await channel.send('早安阿歐逆醬\n<:good_morning:852914114233761832>')
+        channel = client.get_channel(839784321191772251)
+        await channel.send('早安阿歐逆醬\n<:good_morning:852914114233761832>')
 
 
 @client.event
 async def on_ready():
     change_status.start()
+    get_time.start()
     print('Bot is online!')
+
+
 
 @client.event
 async def on_voice_state_update(member, before, after):
     global queue
     global voice_channel
-    if before.channel is not None and after.channel is None:
+    vc = before.channel
 
+    if vc is not None and after.channel is None and len(vc.members) == 1:
         await voice_channel.disconnect()
         queue = []
+
 
 @client.event
 async def on_message(msg):
     if ";" in msg.content or":" in msg.content:
        pass
     else:
+        line = msg.content
+        line_split=line.split()
         if client.user.mentioned_in(msg) and not msg.author.bot:
-            await msg.channel.send("<:ping:832925542768443402><:kanade_ping:837493288504262707>")
-        if "hi" in msg.content and not msg.author.bot:
+            await msg.channel.send("<:ping:832925542768443402><:kanade_ping:837493288504262707><a:FKping:852459756039962634><:snow_ping:852742564582129675>")
 
+        if "hi" in line_split and not msg.author.bot:
             await msg.channel.send(msg.author.mention)
 
+        if "佬" in msg.content and not msg.author.bot:
+            await msg.channel.send('<a:emoji_32:836411269237702656>')
+
+        if "暴死" in msg.content and not msg.author.bot:
+            await msg.channel.send('<a:eat_diamond:852885172583923762>')
     await client.process_commands(msg)
 
 
 @client.event
 async def on_member_join(member):
-    channel = discord.utils.get(member.guild.channels, name='general')
-    await channel.send(f'你好{member.mention}!準備好和Miku玩了嗎? 歐逆醬請用`;;help`怎麼玩弄我')
+    await member.send(f'你好{member.mention}!準備好和Miku玩了嗎? 歐逆醬請用`;;help`查詢怎麼玩弄我')
 
 
 @client.command(name='ping', help='看你家網路有多爛(沒')
@@ -118,23 +151,14 @@ async def hello(ctx):
     if ctx.message.author.voice:
         voice = ctx.voice_client
         voice.play(discord.FFmpegPCMAudio(choice(vocal_hello)),after=lambda e: print('Player error: %s' % e) if e else None)
-
     else:
         await ctx.send('歐逆醬安安')
 
 
-'''@client.command(name='die', help='This command returns a random last words')
-async def die(ctx):
-    responses = ['why have you brought my short life to an end', 'i could have done so much more',
-                 'i have a family, kill them instead']
-    await ctx.send(choice(responses))'''
-
-
 @client.command(name='developer', help='讓你知道Miku的開發者')
 async def credits(ctx):
-    await ctx.send('Made by 柑橘Wang')
-    await ctx.send('Debug by 美味的小圓,Python Taiwan,SHELTER ZONE')
-    await ctx.send('Vocal by 初音ミク')
+    await ctx.send('Made by 柑橘Wang\nDebug by 美味的小圓,Python Taiwan,SHELTER ZONE\nVocal by 初音ミク')
+
 
 
 @client.command(name='join', help='讓miku加入語音頻道')
@@ -147,6 +171,8 @@ async def join(ctx):
         voice_channel = ctx.message.author.voice.channel
 
     await voice_channel.connect()
+    server = ctx.message.guild
+    voice_channel = server.voice_client
     voice = ctx.voice_client
     voice.play(discord.FFmpegPCMAudio(choice(vocal_hello)), after=lambda e: print('Player error: %s' % e) if e else None)
 
@@ -154,6 +180,7 @@ async def join(ctx):
 @client.command(name='leave', help='讓miku停止唱歌並離開語音頻道')
 async def leave(ctx):
     global queue
+
     voice_channel = ctx.message.guild.voice_client
     await voice_channel.disconnect()
     queue=[]
@@ -182,11 +209,9 @@ async def play(ctx):
     global is_playing
     global time_end
 
-
     if not ctx.message.author.voice:
         await ctx.send("你不在語音頻道內")
         return
-
     else:
         voice_channel = ctx.message.author.voice.channel
 
@@ -200,7 +225,6 @@ async def play(ctx):
 
     if len(queue) > 0:
         while (True):
-
             player = await YTDLSource.from_url(queue[0], loop=client.loop)
             with youtube_dl.YoutubeDL(ytdl_format_options) as ydl:
                 dictMeta = ydl.extract_info(f"{queue[0]}", download=False)
@@ -222,22 +246,20 @@ async def play(ctx):
                     del (queue[0])
                 except IndexError:
                     pass
+
             if len(queue) == 0 and loop == False:
                 break
                 is_playing=False
-
-
     else:
         await ctx.send("Miku還不知道主人想聽什麼,用\";;queue\"讓我知道")
-
 
 
 @client.command(nave="volume",help="調整音量")
 async def volume(ctx,volume):
     global value
+
     value=float(volume)
     await ctx.send(f"目前音量為{value}")
-
 
 
 @client.command(name="schedule",help="讓主人知道現在Miku唱到哪了")
@@ -246,6 +268,7 @@ async def schedule(ctx):
     global queue
     global voice_lentage
     global time_end
+
     time_sch=time_end-time_start
     time_sch=int(time_sch)
     lentage_min=voice_lentage//60
@@ -266,6 +289,7 @@ async def schedule(ctx):
 async def cancel(ctx,url):
     global queue
     global is_playing
+
     if len(queue)<=1 and is_playing==True:
         await ctx.send("你無法刪除正在唱的歌")
     else:
@@ -327,7 +351,6 @@ async def resume(ctx):
         pass
 
 
-
 @client.command(name='stop', help='讓miku停止唱歌!')
 async def stop(ctx):
     global queue
@@ -338,7 +361,6 @@ async def stop(ctx):
     time.sleep(0.5)
     voice = ctx.voice_client
     voice.play(discord.FFmpegPCMAudio(choice(vocal_i_got_this)),after=lambda e: print('Player error: %s' % e) if e else None)
-
 
 
 @client.command(name='queue',help='讓Miku知道主人想聽什麼')
@@ -375,10 +397,6 @@ async def view(ctx):
 
 
 
-@tasks.loop(seconds=20)
-async def change_status():
-    await client.change_presence(activity=discord.Game(choice(status)))
-
 
 
 @client.command(name="skip",help="跳過這首歌")
@@ -414,6 +432,9 @@ async def 抽卡(ctx):
         await voice_channel.connect()
     except:
         pass
+    server = ctx.message.guild
+    voice_channel = server.voice_client
+
     random.seed(time.time())
     a = random.sample(range(1, 1000), 115)
     b = []
@@ -435,7 +456,6 @@ async def 抽卡(ctx):
         await ctx.send(f"<@{ctx.author.id}> \n" + "<:2star:828160732512256010>")
 
 
-
 @client.command(name='十抽', help='讓miku抽十次看你是真歐洲還是真非洲')
 async def 十抽(ctx):
     global voice_channel
@@ -449,6 +469,9 @@ async def 十抽(ctx):
         await voice_channel.connect()
     except:
         pass
+    server = ctx.message.guild
+    voice_channel = server.voice_client
+
     random.seed(time.time())
     a = random.sample(range(1, 1000), 115)
     b = []
