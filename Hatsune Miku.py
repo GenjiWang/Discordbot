@@ -7,6 +7,8 @@ import time
 import random
 from random import choice
 import asyncio
+import urllib.request as req
+import bs4
 
 intents=discord.Intents.all()
 
@@ -43,6 +45,7 @@ vocal_hello=["D:/聲音樣本/hello2.wav","D:/聲音樣本/hello4.wav"]
 vocal_i_got_this=["D:/聲音樣本/i got this2.wav","D:/聲音樣本/i got this.wav"]
 vocal_Congratulations=["D:/聲音樣本/恭喜1.wav","D:/聲音樣本/恭喜.wav"]
 voice_channel=0
+sorted=0
 
 
 
@@ -79,27 +82,70 @@ client = commands.Bot(command_prefix=';;',intents=intents)
 async def change_status():
     await client.change_presence(activity=discord.Game(choice(status)))
 
+
+@tasks.loop(seconds=300)
+async def get_rank():
+    global sorted
+    sorted=""
+    slice_rooted=[]
+    url = "https://api.sekai.best/event/live"
+    request = req.Request(url, headers=
+    {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.101 Safari/537.36"
+    })
+    with req.urlopen(request) as response:
+        data = response.read().decode("utf-8")
+    root = bs4.BeautifulSoup(data, "html.parser")
+    slice_root = root.prettify()
+    slice_root = slice_root[45:]
+    while (True):
+        if '}' not in slice_root:
+            break
+        else:
+            str1 = slice_root[:slice_root.find(',"userCard"')]
+            str1 = str1 + "}"
+            slice_rooted.append(str1)
+            str2 = slice_root[slice_root.find('},{'):]
+            slice_root = str2
+            slice_root = slice_root[2:]
+    for i in range(len(slice_rooted)):
+        data = str(slice_rooted[i])
+        data = eval(data)
+        c=str(f'Rank:{data["rank"]:<7}玩家:{data["userName"]:<15}目前積分:{data["score"]:<10}\n')
+        sorted=sorted+c
+
+
 @tasks.loop(seconds=1)
-async def get_time():
+async def tine_to_do():
     time_now = time.ctime()
     time_now= time_now.split()
     time_now1 = time_now[3]
     if time_now1 == "22:00:00":
         channel = client.get_channel(795483888532586528)
-        await channel.send('歐逆醬該去睡覺了\n<:miku_sleep:852886846119608340>')
+        await channel.send('歐逆醬該去睡覺了')
+        await channel.send('<:miku_sleep:852886846119608340>')
         channel = client.get_channel(839784321191772251)
-        await channel.send('歐逆醬該去睡覺了\n<:miku_sleep:852886846119608340>')
+        await channel.send('歐逆醬該去睡覺了')
+        await channel.send('<:miku_sleep:852886846119608340>')
     if time_now1 == "07:00:00":
         channel = client.get_channel(795483888532586528)
-        await channel.send('早安阿歐逆醬\n<:good_morning:852914114233761832>')
+        await channel.send('早安阿歐逆醬')
+        await channel.send('<:good_morning:852914114233761832>')
         channel = client.get_channel(839784321191772251)
-        await channel.send('早安阿歐逆醬\n<:good_morning:852914114233761832>')
+        await channel.send('早安阿歐逆醬')
+        await channel.send('<:good_morning:852914114233761832>')
+    if time_now1 == "03:00:00":
+        channel = client.get_channel(795483888532586528)
+        await channel.send('歐逆醬這個時間還在做甚麼呢?\n深夜台嗎?都不啾的喔')
+        channel = client.get_channel(839784321191772251)
+        await channel.send('歐逆醬這個時間還在做甚麼呢?\n深夜台嗎?都不啾的喔')
 
 
 @client.event
 async def on_ready():
     change_status.start()
-    get_time.start()
+    tine_to_do.start()
+    get_rank.start()
     print('Bot is online!')
 
 
@@ -118,7 +164,9 @@ async def on_voice_state_update(member, before, after):
 @client.event
 async def on_message(msg):
     if ";" in msg.content or":" in msg.content:
-       pass
+        if client.user.mentioned_in(msg) and not msg.author.bot:
+            await msg.channel.send("<:ping:832925542768443402><:kanade_ping:837493288504262707><a:FKping:852459756039962634><:snow_ping:852742564582129675>")
+        pass
     else:
         line = msg.content
         line_split=line.split()
@@ -366,16 +414,20 @@ async def stop(ctx):
 @client.command(name='queue',help='讓Miku知道主人想聽什麼')
 async def queue_(ctx, url):
     global queue
-    queue.append(url)
-    await ctx.send(f'`{url}`我已經收到主人需求!')
-    time.sleep(0.5)
-    if ctx.message.author.voice:
-        voice = ctx.voice_client
-        try:
+    if "https://www.youtube.com/watch?" not in url:
+        await ctx.send("此不為youtube網址")
 
-            voice.play(discord.FFmpegPCMAudio(choice(vocal_i_got_this)),after=lambda e: print('Player error: %s' % e) if e else None)
-        except:
-            pass
+    else:
+        queue.append(url)
+        await ctx.send(f'`{url}`我已經收到主人需求!')
+        time.sleep(0.5)
+        if ctx.message.author.voice:
+            voice = ctx.voice_client
+            try:
+
+                voice.play(discord.FFmpegPCMAudio(choice(vocal_i_got_this)),after=lambda e: print('Player error: %s' % e) if e else None)
+            except:
+                pass
 
 
 @client.command(name='view', help='讓主人知道miku還有多少歌還沒唱完')
@@ -418,6 +470,10 @@ async def skip(ctx):
     time_start = time.time()
     voice_lentage=dictMeta['duration']
 
+@client.command(name="rank",help=("顯示目前本期project sekai的活動排名"))
+async def rank(ctx):
+    global sorted
+    await ctx.send(f"```{sorted}```")
 
 @client.command(name="抽卡",help="讓miku決定你是非洲人還是歐洲人")
 async def 抽卡(ctx):
@@ -510,6 +566,9 @@ async def 十抽(ctx):
 async def 歐洲人(ctx):
     gtl= ["<:4star:828160732318138389>"*10]
     await ctx.send(f"<@{ctx.author.id}>\n{gtl}")
+
+
+
 
 
 
