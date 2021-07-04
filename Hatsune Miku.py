@@ -644,4 +644,4 @@ async def 歐洲人(ctx):
 
 
 
-client.run('NzcyMDcyNzU3OTAyODM1NzQy.X51WyQ.snh-FWEEqRS0Byeiot1xrsGHJC4')
+client.run('TOKEN')
