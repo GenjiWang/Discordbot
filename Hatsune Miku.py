@@ -47,16 +47,17 @@ vocal_Congratulations=["D:/聲音樣本/恭喜1.wav","D:/聲音樣本/恭喜.wav
 voice_channel=0
 sorted=""
 player=""
+pausing=False
+already_play=0
 
 
 
 class YTDLSource(discord.PCMVolumeTransformer):
     def __init__(self, source, *, data):
         global value
+
         super().__init__(source,value)
-
         self.data = data
-
         self.title = data.get('title')
         self.url = data.get('url')
 
@@ -86,58 +87,46 @@ async def change_status():
 
 @tasks.loop(seconds=30)
 async def get_rank():
-    while(True):
-        global sorted
-        sorted=""
-        slice_rooted=[]
-        url = "https://api.sekai.best/event/live"
-        request = req.Request(url, headers=
-        {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.101 Safari/537.36"
-        })
-        with req.urlopen(request) as response:
-            data = response.read().decode("utf-8")
-        root = bs4.BeautifulSoup(data, "html.parser")
-        slice_root = root.prettify()
-        slice_root = slice_root[45:]
-        while (True):
-            if '}' not in slice_root:
-                break
-            else:
-                try:
-                    str1 = slice_root[:slice_root.find(',"userCard"')]
-                    str1 = str1 + "}"
-                    slice_rooted.append(str1)
-                    str2 = slice_root[slice_root.find('},{'):]
-                    slice_root = str2
-                    slice_root = slice_root[2:]
-                except:
-                    slice_root = root.prettify()
-                    slice_root = slice_root[45:]
-                    sorted = ""
-                    slice_rooted = []
-                    continue
-        try:
-            for i in range(len(slice_rooted)):
-                data = str(slice_rooted[i])
-                data = eval(data)
-                c=str(f'Rank:{data["rank"]:<7}玩家:{data["userName"]:<15}\n目前積分:{data["score"]:<10}\n\n')
-                sorted=sorted+c
+    global sorted
+    sorted=""
+    url = "https://api.sekai.best/event/live"
+    request = req.Request(url, headers=
+    {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.101 Safari/537.36"
+    })
+    with req.urlopen(request) as response:
+        data = response.read().decode("utf-8")
+    root = bs4.BeautifulSoup(data, "html.parser")
+    slice_rooted = []
+    slice_root = root.prettify()
+
+    slice_root = slice_root[45:]
+    while (True):
+        if '}' not in slice_root:
             break
+        else:
+            str1 = slice_root[:slice_root.find(',"userCard"')]
+            str1 = str1 + "}"
+            slice_rooted.append(str1)
+            str2 = slice_root[slice_root.find('},{'):]
+            slice_root = str2
+            slice_root = slice_root[2:]
+
+    for i in range(len(slice_rooted)):
+        data = str(slice_rooted[i])
+        try:
+            data = eval(data)
+            c=f'Rank:{data["rank"]:<7}player:{data["userName"]:<15}\nscore now:{data["score"]:<10}\n\n'
+            sorted=sorted+c
         except:
             continue
 
-@tasks.loop(seconds=3600)
-async def reset_time():
-    tine_to_do.stop()
-    await asyncio.sleep(1)
-    tine_to_do.start()
 
-@tasks.loop(seconds=3600)
+''''@tasks.loop(seconds=3600)
 async def give_me_rank():
     global sorted
     member= client.get_user(277692370622087168)
-    await member.send(f"```{sorted}```")
+    await member.send(f"```{sorted}```")'''
 
 @tasks.loop(seconds=1)
 async def tine_to_do():
@@ -146,36 +135,36 @@ async def tine_to_do():
     time_now1 = time_now[3]
 
 
-    if time_now1 == "23:00:00":
+    if '22:00:0'in time_now1:
         channel = client.get_channel(844419400589115403)
         await channel.send('歐逆醬該去睡覺了')
         await channel.send('<:miku_sleep:852886846119608340>')
         channel = client.get_channel(839784321191772251)
         await channel.send('歐逆醬該去睡覺了')
         await channel.send('<:miku_sleep:852886846119608340>')
-    if time_now1 == "07:00:00":
+        await asyncio.sleep(10)
+    if '08:00:0'in time_now1:
         channel = client.get_channel(844419400589115403)
         await channel.send('早安阿歐逆醬')
         await channel.send('<:good_morning:852914114233761832>')
         channel = client.get_channel(839784321191772251)
         await channel.send('早安阿歐逆醬')
         await channel.send('<:good_morning:852914114233761832>')
-    if time_now1 == "03:00:00":
+        await asyncio.sleep(10)
+    if '03:00:0'in time_now1:
         channel = client.get_channel(844419400589115403)
         await channel.send('歐逆醬這個時間還在做甚麼呢?\n深夜台嗎?都不揪的喔')
         channel = client.get_channel(839784321191772251)
         await channel.send('歐逆醬這個時間還在做甚麼呢?\n深夜台嗎?都不揪的喔')
+        await asyncio.sleep(10)
 
 
 @client.event
 async def on_ready():
     try:
-
         change_status.start()
         get_rank.start()
-        reset_time.start()
-        await asyncio.sleep(1)
-        give_me_rank.start()
+        tine_to_do.start()
         print('Bot is online!')
     except:
         pass
@@ -187,12 +176,18 @@ async def on_voice_state_update(member, before, after):
     global queue
     global voice_channel
     global is_playing
+    global pausing
+    global already_play
+    global loop
     vc = before.channel
 
     if vc is not None and after.channel is None and len(vc.members) == 1:
         await voice_channel.disconnect()
         queue = []
         is_playing=False
+        pausing=False
+        already_play=0
+        loop=False
 
 
 @client.event
@@ -294,6 +289,7 @@ async def play(ctx):
     global is_playing
     global time_end
     global player
+    global already_play
 
     if is_playing==True:
         pass
@@ -315,6 +311,7 @@ async def play(ctx):
 
         if len(queue) > 0:
             while (True):
+                player=""
                 player = await YTDLSource.from_url(queue[0], loop=client.loop)
                 with youtube_dl.YoutubeDL(ytdl_format_options) as ydl:
                     dictMeta = ydl.extract_info(f"{queue[0]}", download=False)
@@ -324,20 +321,21 @@ async def play(ctx):
                     voice_lentage=dictMeta['duration']
                 except:
                     continue
-
-
                 await ctx.send(f'Miku正在唱:{player.title}')
+                already_play = 0
                 time_start = time.time()
-                while(time_end-time_start<=voice_lentage):
+                while ((time_end - time_start <= voice_lentage - already_play) and is_playing == True):
                     await asyncio.sleep(1)
                     time_end = time.time()
+                    while (pausing == True):
+                        await asyncio.sleep(1)
                 if loop == False:
                     try:
                         del (queue[0])
                     except IndexError:
                         pass
 
-                if len(queue) == 0 and loop == False:
+                if (len(queue) == 0 and loop == False) or is_playing==False:
                     is_playing = False
                     break
         else:
@@ -354,17 +352,14 @@ async def volume(ctx,volume):
 
 @client.command(name="schedule",help="讓主人知道現在Miku唱到哪了")
 async def schedule(ctx):
-    global time_start
     global queue
     global voice_lentage
-    global time_end
+    global already_play
 
-    time_sch=time_end-time_start
-    time_sch=int(time_sch)
-    lentage_min=voice_lentage//60
-    lentage_sec=voice_lentage%60
-    time_sch_sec=time_sch%60
-    time_sch_min=time_sch//60
+    lentage_min = voice_lentage // 60
+    lentage_sec = voice_lentage % 60
+    time_sch_sec = already_play % 60
+    time_sch_min = already_play // 60
     if lentage_sec<10:
         await ctx.send(f"目前播放進度:  {time_sch_min}:{time_sch_sec}/{lentage_min}:0{lentage_sec}")
     elif lentage_sec<10 and time_sch_sec<10:
@@ -400,35 +395,51 @@ async def state(ctx):
   global value
 
   if len(queue)==0:
-    if loop==False:
-      await ctx.send(f"目前還沒人點歌\n重撥模式:關閉\n目前音量{value}")
-    else:
-      await ctx.send(f"目前還沒人點歌\n重撥模式:開啟\n目前音量{value}")
+      await ctx.send(f"目前還沒人點歌\n重撥模式:{loop}\n目前音量{value}")
+
   else:
-     if loop==False:
-      await ctx.send(f"目前還有{len(queue)}首歌\n重撥模式:關閉\n目前音量{value}")
-     else:
-      await ctx.send(f"目前還有{len(queue)}首歌\n重撥模式:開啟\n目前音量{value}")
+
+      await ctx.send(f"目前還有{len(queue)}首歌\n重撥模式:{loop}\n目前音量{value}")
 
 
 @client.command(name='pause', help='讓miku先不要唱歌')
 async def pause(ctx):
-    voice_channel = server.voice_client
+    global voice_channel
+    global pauseing
+    global time_start
+    global time_end
+    global already_play
+
     voice_channel.pause()
+    pauseing=True
+    already_play=time_end-time_start
+
+@client.command(name='keep_playing', help='讓miku繼續唱歌')
+async def keep_playing(ctx):
+    global voice_channel
+    global pausing
+
+    voice_channel.resume()
+    pausing=False
 
 
-@client.command(name='resume', help='讓Miku重唱一次')
+@client.command(name='resume', help='Let miku sing again')
 async def resume(ctx):
     global queue
     global is_playing
     global voice_lentage
     global time_start
     global voice_channel
+    global already_play
+    global pausing
 
 
     voice_channel.stop()
     time.sleep(0.5)
+    already_play = 0
+    pausing = False
     player = await YTDLSource.from_url(queue[0], loop=client.loop)
+
     with youtube_dl.YoutubeDL(ytdl_format_options) as ydl:
         dictMeta = ydl.extract_info(f"{queue[0]}", download=False)
     try:
@@ -440,13 +451,16 @@ async def resume(ctx):
         pass
 
 
-@client.command(name='stop', help='讓miku停止唱歌!')
+@client.command(name='stop', help='Let Miku stop singing!')
 async def stop(ctx):
     global queue
     global voice_channel
     global is_playing
+    global pausing
     del (queue[0])
+
     is_playing=False
+    pausing=False
     voice_channel.stop()
     await asyncio.sleep(0.5)
     voice = ctx.voice_client
@@ -497,15 +511,18 @@ async def view(ctx):
 
 @client.command(name="skip",help="跳過這首歌")
 async def skip(ctx):
-    server = ctx.message.guild
-    voice_channel = server.voice_client
-    voice_channel.stop()
     global queue
     global time_start
     global voice_lentage
     global player
+    global pausing
+    global already_play
     del(queue[0])
 
+    voice_channel.stop()
+
+    pausing=False
+    already_play=0
     player = await YTDLSource.from_url(queue[0], loop=client.loop)
     with youtube_dl.YoutubeDL(ytdl_format_options) as ydl:
         dictMeta = ydl.extract_info(f"{queue[0]}", download=False)
@@ -627,4 +644,4 @@ async def 歐洲人(ctx):
 
 
 
-client.run('TOKEN')
+client.run('NzcyMDcyNzU3OTAyODM1NzQy.X51WyQ.snh-FWEEqRS0Byeiot1xrsGHJC4')
