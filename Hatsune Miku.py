@@ -345,8 +345,14 @@ async def play(ctx):
 @client.command(nave="volume",help="調整音量")
 async def volume(ctx,volume):
     global value
-
-    value=float(volume)
+    global voice_channel
+    volume = float(volume)
+    try:
+        voice_channel.source = discord.PCMVolumeTransformer(voice_channel.source, 1 / value)
+        voice_channel.source = discord.PCMVolumeTransformer(voice_channel.source, 1 * volume)
+    except:
+        pass
+    value = volume
     await ctx.send(f"目前音量為{value}")
 
 
@@ -564,7 +570,7 @@ async def 抽卡(ctx):
         a.remove(b[i])
     gt = random.randint(1, 1000)
     if gt in a:
-        await ctx.send(f"<@{ctx.author.id}>\n" + " <:4star:828160732318138389>")
+        await ctx.send(f"<@{ctx.author.id}>\n<:4star:828160732318138389>")
         try:
             voice = ctx.voice_client
             voice.play(discord.FFmpegPCMAudio(choice(vocal_Congratulations)),after=lambda e: print('Player error: %s' % e) if e else None)
@@ -623,7 +629,7 @@ async def 十抽(ctx):
             send=send+"\n"
 
     await ctx.send(f"<@{ctx.author.id}>\n{send} ")
-    if (gtl.count("<:4star:828160732318138389>")>=1 or gtl.count("<:3star:828160732419063818>")>=3):
+    if (gtl.count("<:4star:828160732318138389>") >=1 ):
 
         try:
             voice = ctx.voice_client
@@ -636,12 +642,6 @@ async def 十抽(ctx):
 async def 歐洲人(ctx):
     gtl= ["<:4star:828160732318138389>"*10]
     await ctx.send(f"<@{ctx.author.id}>\n{gtl}")
-
-
-
-
-
-
 
 
 client.run('TOKEN')
