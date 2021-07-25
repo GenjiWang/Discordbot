@@ -86,6 +86,43 @@ async def change_status():
 
 
 @tasks.loop(seconds=30)
+async def new_chart_announcement():
+    global last_root
+
+    url = "https://servers.purplepalette.net/levels/list"
+    request = req.Request(url, headers=
+    {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.101 Safari/537.36"
+    })
+    with req.urlopen(request) as response:
+        data = response.read().decode("utf-8")
+    root = bs4.BeautifulSoup(data, "html.parser")
+    root = root.prettify()
+    if (last_root != root):
+        str1 = root[root.find("\"useParticle\":{\"useDefault\":true},"):]
+
+        str2 = root[root.find(',\"bgm\"'):]
+        round_count = len(str1) - len(str2)
+        str1 = str1[34:]
+        sliced_root = "{"
+        for i in range(round_count):
+            sliced_root = sliced_root + str1[i]
+
+        sliced_root = sliced_root[:sliced_root.find(',\"bgm\"')]
+        sliced_root += "}"
+        sliced_root = sliced_root.replace("\\u0026", "&")
+        data = eval(sliced_root)
+        embed = discord.Embed(title="New chart announcement ", url="https://potato.purplepalette.net/", color=0x0dc6d3)
+        embed.set_thumbnail(url=data['cover']['url'])
+        embed.add_field(name="New chart", value=data['title'], inline=False)
+        embed.add_field(name="Artists", value=data['artists'], inline=False)
+        embed.add_field(name="Author", value=data['author'], inline=False)
+        channel = client.get_channel(855263100076425256)
+        await channel.send(embed=embed)
+        last_root = root
+
+
+@tasks.loop(seconds=30)
 async def get_rank():
     global sorted
     sorted=""
@@ -165,6 +202,7 @@ async def on_ready():
         change_status.start()
         get_rank.start()
         tine_to_do.start()
+        new_chart_announcement.start()
         print('Bot is online!')
     except:
         pass
@@ -642,6 +680,12 @@ async def 十抽(ctx):
 async def 歐洲人(ctx):
     gtl= ["<:4star:828160732318138389>"*10]
     await ctx.send(f"<@{ctx.author.id}>\n{gtl}")
+
+
+
+
+
+
 
 
 client.run('TOKEN')
