@@ -10,6 +10,8 @@ import asyncio
 import urllib.request as req
 import bs4
 import googletrans
+import os
+from PIL import Image
 
 intents=discord.Intents.all()
 
@@ -591,7 +593,7 @@ async def lottery(ctx):
 @client.command(name='lottery*10', help='get a lottery from project sekai 10 times')
 async def 十抽(ctx):
     global voice_channel
-    get=""
+    get=[]
     if not ctx.message.author.voice:
         pass
     else:
@@ -619,6 +621,7 @@ async def 十抽(ctx):
             gtl.append("3star")
         else:
             gtl.append("2star")
+
     if "4star"and"3star"not in gtl:
         replace=random.randint(0,9)
         gt = random.randint(1, 100)
@@ -630,43 +633,51 @@ async def 十抽(ctx):
         message=await ctx.send(f"<@{ctx.author.id}>\n<:4star:828160732318138389> ")
     else:
         message=await ctx.send(f"<@{ctx.author.id}>\n<:3star:828160732419063818> ")
-    star2_file = open("2star.txt", "r")
-    star3_file = open("3star .txt", "r")
-    star4_file = open("4star.txt", "r")
-    star2 = eval(star2_file.read())
-    star3 = eval(star3_file.read())
-    star4 = eval(star4_file.read())
-    star2_file.close()
-    star3_file.close()
-    star4_file.close()
 
-
-    print(get)
-
-
-
-    await asyncio.sleep(1)
     for i in range(10):
-
         card = gtl[i]
         if card == "4star":
-            get = get + (choice(star4)) + "\n"
-
+            image_names = list(os.walk("D:/Discordbot/4star/"))[0][2]
+            selected_images = random.choices(image_names)
+            get.append(selected_images)
         elif card == "3star":
-            get = get + (choice(star3)) + "\n"
+            image_names = list(os.walk("D:/Discordbot/3star/"))[0][2]
+            selected_images = random.choices(image_names)
+            get.append(selected_images)
         else:
-            get = get + (choice(star2)) + "\n"
-        if i==4:
-            await message.edit(content=get)
-            get=""
-    await ctx.send(get)
+            image_names = list(os.walk("D:/Discordbot/2star/"))[0][2]
+            selected_images = random.choices(image_names)
+            get.append(selected_images)
+    image_files = []
+
+    for index in range(5 * 2):
+        if gtl[index]== "4star":
+            image_files.append(Image.open(f"D:/Discordbot/4star/{get[index][0]}"))
+        elif gtl[index]== "3star":
+            image_files.append(Image.open(f"D:/Discordbot/3star/{get[index][0]}"))
+        else:
+            image_files.append(Image.open(f"D:/Discordbot/2star/{get[index][0]}"))
+    target = Image.new('RGB', (128 * 5, 128 * 2))
+    for row in range(2):
+        for col in range(5):
+            target.paste(image_files[5*row+col], (0 + 128*col, 0 + 128*row))
+    target.save("D:/Discordbot/result.png", quality=100)
+    embed = discord.Embed(title="You got:", color=0x03cafc)
+    embed.add_field(name="4star", value=f"{gtl.count('4star')}", inline=True)
+    embed.add_field(name="3star", value=f"{gtl.count('3star')}", inline=True)
+    embed.add_field(name="2star", value=f"{gtl.count('2star')}", inline=True)
+    file = discord.File("D:/Discordbot/result.png")
+    embed.set_image(url="attachment://image.png")
+    await message.edit(embed=embed)
+    await ctx.send(file=file)
+
+
     if (gtl.count("<:4star:828160732318138389>")>=1 or gtl.count("<:3star:828160732419063818>")>=3):
         try:
             voice = ctx.voice_client
             voice.play(discord.FFmpegPCMAudio(choice(vocal_Congratulations)),after=lambda e: print('Player error: %s' % e) if e else None)
         except:
             pass
-
 
 @client.command()
 async def in_your_dream(ctx):
