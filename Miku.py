@@ -1,21 +1,19 @@
 import discord
-from aioftp import server
 from discord.ext import commands, tasks
-from discord.voice_client import VoiceClient
-import youtube_dl
-import time
-import random
+from youtube_dl import  utils,YoutubeDL
+from time import ctime,time
+from random import sample,randint,choices
 from random import choice
-import asyncio
+from asyncio import get_event_loop,sleep
 import urllib.request as req
-import bs4
-import googletrans
-import os
+from bs4 import BeautifulSoup
+from googletrans import Translator
+from os import walk, remove
 from PIL import Image
 
 intents=discord.Intents.all()
 
-youtube_dl.utils.bug_reports_message = lambda: ''
+utils.bug_reports_message = lambda: ''
 
 ytdl_format_options = {
     'format': 'bestaudio/best',
@@ -32,7 +30,7 @@ ytdl_format_options = {
 }
 
 ffmpeg_options = {'options': '-vn'}
-ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
+ytdl = YoutubeDL(ytdl_format_options)
 status = ['Wait for command!', 'Playing with everyone', 'Sleeping!']
 queue = []
 loop = False
@@ -49,7 +47,7 @@ sorted=""
 player=""
 pausing=False
 already_play=0
-last_root=""
+
 
 
 class YTDLSource(discord.PCMVolumeTransformer):
@@ -62,7 +60,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
 
     @classmethod
     async def from_url(cls, url, *, loop=None, stream=False):
-        loop = loop or asyncio.get_event_loop()
+        loop = loop or get_event_loop()
         data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=not stream))
         if 'entries' in data:
             data = data['entries'][0]
@@ -90,7 +88,7 @@ async def new_chart_announcement():
     })
     with req.urlopen(request) as response:
         data = response.read().decode("utf-8")
-    root = bs4.BeautifulSoup(data, "html.parser")
+    root = BeautifulSoup(data, "html.parser")
     outFile = open("D:/Discordbot/text.txt", "r", encoding="utf-8")
     text = outFile.read()
     outFile.close()
@@ -118,7 +116,7 @@ async def new_chart_announcement():
         outFile.close()
 
 
-@tasks.loop(seconds=30)
+@tasks.loop(seconds=600)
 async def get_rank():
     global sorted
     sorted=""
@@ -129,7 +127,7 @@ async def get_rank():
     })
     with req.urlopen(request) as response:
         data = response.read().decode("utf-8")
-    root = bs4.BeautifulSoup(data, "html.parser")
+    root = BeautifulSoup(data, "html.parser")
     slice_rooted = []
     slice_root = root.prettify()
     slice_root = slice_root[45:]
@@ -143,7 +141,6 @@ async def get_rank():
             str2 = slice_root[slice_root.find('},{'):]
             slice_root = str2
             slice_root = slice_root[2:]
-
     for i in range(len(slice_rooted)):
         data = str(slice_rooted[i])
         try:
@@ -152,23 +149,26 @@ async def get_rank():
             sorted=sorted+c
         except:
             continue
+    time_now = ctime()
+    time_now = time_now.split()
+    sorted=sorted+f"Update at{time_now[2]} {time_now[3]}"
 
 
 @tasks.loop(seconds=1)
 async def tine_to_do():
-    time_now = time.ctime()
+    time_now =ctime()
     time_now= time_now.split()
-    time_now1 = time_now[3]
-    if '23:00:0'in time_now1:
+    time_now = time_now[3]
+    if '23:00:0'in time_now:
         channel = client.get_channel(826086788291624990)
-        await channel.send('Is time to sleep,good night')
+        await channel.send('おやすみ')
         await channel.send('<:miku_sleep:852886846119608340>')
-        await asyncio.sleep(10)
-    if '07:00:0'in time_now1:
+        await sleep(10)
+    if '07:10:0'in time_now:
         channel = client.get_channel(826086788291624990)
-        await channel.send('good morning')
+        await channel.send('おはよう')
         await channel.send('<:good_morning:852914114233761832>')
-        await asyncio.sleep(10)
+        await sleep(10)
 
 
 @client.event
@@ -206,7 +206,7 @@ async def on_message(msg):
         pass
     else:
         if not msg.author.bot:
-            translator = googletrans.Translator()
+            translator = Translator()
             results = translator.translate(msg.content)
             channel = client.get_channel(867346418079105055)
             await channel.send(f"{msg.author.name}\n{results.text}\nTranslated from:{results.src} " )
@@ -313,12 +313,10 @@ async def play(ctx):
             return
         else:
             voice_channel = ctx.message.author.voice.channel
-
         try:
             await voice_channel.connect()
         except:
             pass
-
         server = ctx.message.guild
         voice_channel = server.voice_client
 
@@ -326,28 +324,27 @@ async def play(ctx):
             while (True):
                 player=""
                 player = await YTDLSource.from_url(queue[0], loop=client.loop)
-                with youtube_dl.YoutubeDL(ytdl_format_options) as ydl:
+                with YoutubeDL(ytdl_format_options) as ydl:
                     dictMeta = ydl.extract_info(f"{queue[0]}", download=False)
                 try:
                     voice_channel.play(player, after=lambda e: print('Player error: %s' % e) if e else None)
-                    is_playing=True
                     voice_lentage=dictMeta['duration']
                 except:
                     continue
                 await ctx.send(f'Miku is singing:{player.title}')
+                is_playing = True
                 already_play=0
-                time_start = time.time()
+                time_start = time()
                 while((time_end-time_start<=voice_lentage-already_play) and is_playing==True):
-                    await asyncio.sleep(1)
-                    time_end = time.time()
+                    await sleep(1)
+                    time_end = time()
                     while(pausing==True):
-                        await asyncio.sleep(1)
+                        await sleep(1)
                 if loop == False:
                     try:
                         del (queue[0])
                     except IndexError:
                         pass
-
                 if len(queue) == 0:
                     is_playing = False
                     break
@@ -373,20 +370,21 @@ async def volume(ctx,volume):
 async def schedule(ctx):
     global queue
     global voice_lentage
-    global already_play
+    global time_end
+    global time_start
 
     lentage_min=voice_lentage//60
     lentage_sec=voice_lentage%60
-    time_sch_sec=already_play%60
-    time_sch_min=already_play//60
+    time_sch_sec=(time_end-time_start)%60
+    time_sch_min=(time_end-time_start)//60
     if lentage_sec<10:
-        await ctx.send(f"schedule:  {time_sch_min}:{time_sch_sec}/{lentage_min}:0{lentage_sec}")
+        await ctx.send(f"schedule:  {int(time_sch_min)}:{int(time_sch_sec)}/{int(lentage_min)}:0{int(lentage_sec)}")
     elif lentage_sec<10 and time_sch_sec<10:
-        await ctx.send(f"schedule:  {time_sch_min}:0{time_sch_sec}/{lentage_min}:0{lentage_sec}")
+        await ctx.send(f"schedule:  {int(time_sch_min)}:0{int(time_sch_sec)}/{int(lentage_min)}:0{int(lentage_sec)}")
     elif time_sch_sec<10:
-        await ctx.send(f"schedule:  {time_sch_min}:0{time_sch_sec}/{lentage_min}:{lentage_sec}")
+        await ctx.send(f"schedule:  {int(time_sch_min)}:0{int(time_sch_sec)}/{int(lentage_min)}:{int(lentage_sec)}")
     else:
-        await ctx.send(f"schedule:  {time_sch_min}:{time_sch_sec}/{lentage_min}:{lentage_sec}")
+        await ctx.send(f"schedule:  {int(time_sch_min)}:{int(time_sch_sec)}/{int(lentage_min)}:{int(lentage_sec)}")
 
 
 @client.command(name="cancel",help="Cancel the song from queue")
@@ -457,20 +455,19 @@ async def resume(ctx):
     global pausing
 
     voice_channel.stop()
-    time.sleep(0.5)
+    sleep(0.5)
     already_play = 0
     pausing = False
     player = await YTDLSource.from_url(queue[0], loop=client.loop)
-    with youtube_dl.YoutubeDL(ytdl_format_options) as ydl:
+    with YoutubeDL(ytdl_format_options) as ydl:
         dictMeta = ydl.extract_info(f"{queue[0]}", download=False)
     try:
         voice_channel.play(player, after=lambda e: print('Player error: %s' % e) if e else None)
         is_playing = True
         voice_lentage = dictMeta['duration']
-        time_start = time.time()
+        time_start = time()
     except:
         pass
-
 
 @client.command(name='stop', help='Let Miku stop singing!')
 async def stop(ctx):
@@ -483,7 +480,7 @@ async def stop(ctx):
     is_playing=False
     pausing=False
     voice_channel.stop()
-    await asyncio.sleep(0.5)
+    await sleep(0.5)
     voice = ctx.voice_client
     voice.play(discord.FFmpegPCMAudio(choice(vocal_i_got_this)),after=lambda e: print('Player error: %s' % e) if e else None)
 
@@ -497,7 +494,7 @@ async def queue_(ctx, url):
         queue.append(url)
         await ctx.send(f'`{url}`I got your order!')
         await YTDLSource.from_url(url, loop=client.loop)
-        time.sleep(0.5)
+        sleep(0.5)
         if ctx.message.author.voice:
             voice = ctx.voice_client
             try:
@@ -540,12 +537,12 @@ async def skip(ctx):
     pausing=False
     already_play=0
     player = await YTDLSource.from_url(queue[0], loop=client.loop)
-    with youtube_dl.YoutubeDL(ytdl_format_options) as ydl:
+    with YoutubeDL(ytdl_format_options) as ydl:
         dictMeta = ydl.extract_info(f"{queue[0]}", download=False)
         voice_channel.play(player, after=lambda e: print('Player error: %s' % e) if e else None)
 
     await ctx.send(f'Miku is singing:{player.title}')
-    time_start = time.time()
+    time_start = time()
     voice_lentage=dictMeta['duration']
 
 
@@ -562,32 +559,44 @@ async def lottery(ctx):
         pass
     else:
         voice_channel = ctx.message.author.voice.channel
-
     try:
         await voice_channel.connect()
     except:
         pass
     server = ctx.message.guild
     voice_channel = server.voice_client
-    random.seed(time.time())
-    a = random.sample(range(1, 1000), 115)
+    a = sample(range(1, 1000), 145)
     b = []
     for i in range(85):
         b.append(a[i])
     for i in range(85):
         a.remove(b[i])
-    gt = random.randint(1, 1000)
+    gt = randint(1, 1000)
     if gt in a:
-        await ctx.send(f"<@{ctx.author.id}>\n" + " <:4star:828160732318138389>")
+        image_names = list(walk("D:/Discordbot/4star/"))[0][2]
+        selected_images =choices(image_names)
+        file = discord.File(f"D:/Discordbot/4star/{selected_images[0]}")
+        await ctx.send(f"<@{ctx.author.id}>")
+        await ctx.send(file=file)
         try:
             voice = ctx.voice_client
             voice.play(discord.FFmpegPCMAudio(choice(vocal_Congratulations)),after=lambda e: print('Player error: %s' % e) if e else None)
         except:
             pass
     elif gt in b:
-        await ctx.send(f"<@{ctx.author.id}> \n" + "<:3star:828160732419063818>")
+        image_names = list(walk("D:/Discordbot/3star/"))[0][2]
+        selected_images = choices(image_names)
+        file = discord.File(f"D:/Discordbot/3star/{selected_images[0]}")
+        await ctx.send(f"<@{ctx.author.id}>")
+        await ctx.send(file=file)
+
     else:
-        await ctx.send(f"<@{ctx.author.id}> \n" + "<:2star:828160732512256010>")
+        image_names = list(walk("D:/Discordbot/2star/"))[0][2]
+        selected_images = choices(image_names)
+        file = discord.File(f"D:/Discordbot/2star/{selected_images[0]}")
+        await ctx.send(f"<@{ctx.author.id}>")
+        await ctx.send(file=file)
+
 
 
 @client.command(name='lottery*10', help='get a lottery from project sekai 10 times')
@@ -605,8 +614,7 @@ async def 十抽(ctx):
         pass
     server = ctx.message.guild
     voice_channel = server.voice_client
-    random.seed(time.time())
-    a = random.sample(range(1, 1000), 115)
+    a = sample(range(1, 1000), 115)
     b = []
     gtl=[]
     for i in range(85):
@@ -614,7 +622,7 @@ async def 十抽(ctx):
     for i in range(85):
         a.remove(b[i])
     for i in range(10):
-        gt = random.randint(1, 1000)
+        gt = randint(1, 1000)
         if gt in a:
             gtl.append("4star")
         elif gt in b:
@@ -623,8 +631,8 @@ async def 十抽(ctx):
             gtl.append("2star")
 
     if "4star"and"3star"not in gtl:
-        replace=random.randint(0,9)
-        gt = random.randint(1, 100)
+        replace=randint(0,9)
+        gt = randint(1, 100)
         if 1<=gt<=3:
             gtl[replace]=("4star")
         else:
@@ -633,51 +641,38 @@ async def 十抽(ctx):
         message=await ctx.send(f"<@{ctx.author.id}>\n<:4star:828160732318138389> ")
     else:
         message=await ctx.send(f"<@{ctx.author.id}>\n<:3star:828160732419063818> ")
-
     for i in range(10):
         card = gtl[i]
-        if card == "4star":
-            image_names = list(os.walk("D:/Discordbot/4star/"))[0][2]
-            selected_images = random.choices(image_names)
-            get.append(selected_images)
-        elif card == "3star":
-            image_names = list(os.walk("D:/Discordbot/3star/"))[0][2]
-            selected_images = random.choices(image_names)
-            get.append(selected_images)
-        else:
-            image_names = list(os.walk("D:/Discordbot/2star/"))[0][2]
-            selected_images = random.choices(image_names)
-            get.append(selected_images)
-    image_files = []
+        image_names = list(walk(f"D:/Discordbot/{card}/"))[0][2]
+        selected_images = choices(image_names)
+        selected_images=Image.open(f"D:/Discordbot/{card}/{selected_images[0]}")
+        get.append(selected_images)
 
-    for index in range(5 * 2):
-        if gtl[index]== "4star":
-            image_files.append(Image.open(f"D:/Discordbot/4star/{get[index][0]}"))
-        elif gtl[index]== "3star":
-            image_files.append(Image.open(f"D:/Discordbot/3star/{get[index][0]}"))
-        else:
-            image_files.append(Image.open(f"D:/Discordbot/2star/{get[index][0]}"))
+
     target = Image.new('RGB', (128 * 5, 128 * 2))
     for row in range(2):
         for col in range(5):
-            target.paste(image_files[5*row+col], (0 + 128*col, 0 + 128*row))
-    target.save("D:/Discordbot/result.png", quality=100)
+            target.paste(get[5*row+col], (0 + 128*col, 0 + 128*row))
+    message_id=str(ctx)
+    message_id = message_id[message_id.find("0x"):]
+    message_id=message_id[:-1]
+    target.save(f"D:/Discordbot/result/{message_id}result.png", quality=100)
     embed = discord.Embed(title="You got:", color=0x03cafc)
     embed.add_field(name="4star", value=f"{gtl.count('4star')}", inline=True)
     embed.add_field(name="3star", value=f"{gtl.count('3star')}", inline=True)
     embed.add_field(name="2star", value=f"{gtl.count('2star')}", inline=True)
-    file = discord.File("D:/Discordbot/result.png")
+    file = discord.File(f"D:/Discordbot/result/{message_id}result.png")
     embed.set_image(url="attachment://image.png")
     await message.edit(embed=embed)
     await ctx.send(file=file)
 
-
-    if (gtl.count("<:4star:828160732318138389>")>=1 or gtl.count("<:3star:828160732419063818>")>=3):
+    if "4star" in gtl:
         try:
             voice = ctx.voice_client
             voice.play(discord.FFmpegPCMAudio(choice(vocal_Congratulations)),after=lambda e: print('Player error: %s' % e) if e else None)
         except:
             pass
+    remove(f"D:/Discordbot/result/{message_id}result.png")
 
 @client.command()
 async def in_your_dream(ctx):
