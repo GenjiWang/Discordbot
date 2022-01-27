@@ -2,14 +2,14 @@ import discord
 from discord.ext import commands, tasks
 from youtube_dl import  utils,YoutubeDL
 from time import ctime,time
-from random import sample,randint,choices
-from random import choice
+from random import randint,choices,choice
 from asyncio import get_event_loop,sleep
 import urllib.request as req
 from bs4 import BeautifulSoup
 from googletrans import Translator
 from os import walk, remove
 from PIL import Image
+from numba import jit
 
 intents=discord.Intents.all()
 
@@ -31,7 +31,7 @@ ytdl_format_options = {
 
 ffmpeg_options = {'options': '-vn'}
 ytdl = YoutubeDL(ytdl_format_options)
-status = ['Wait for command!', 'Playing with everyone', 'Sleeping!']
+status = "あけましておめでとう"
 queue = []
 loop = False
 is_playing=False
@@ -47,8 +47,7 @@ sorted=""
 player=""
 pausing=False
 already_play=0
-
-
+state_count=0
 
 class YTDLSource(discord.PCMVolumeTransformer):
     global value
@@ -76,7 +75,7 @@ client = commands.Bot(command_prefix=';;',intents=intents)
 
 @tasks.loop(seconds=20)
 async def change_status():
-    await client.change_presence(activity=discord.Game(choice(status)))
+    await client.change_presence(activity=discord.Game(status))
 
 
 @tasks.loop(seconds=30)
@@ -164,7 +163,7 @@ async def tine_to_do():
         await channel.send('おやすみ')
         await channel.send('<:miku_sleep:852886846119608340>')
         await sleep(10)
-    if '07:10:0'in time_now:
+    if '07:00:0'in time_now:
         channel = client.get_channel(826086788291624990)
         await channel.send('おはよう')
         await channel.send('<:good_morning:852914114233761832>')
@@ -555,6 +554,8 @@ async def rank(ctx):
 @client.command(name="lottery",help="get a lottery from project sekai")
 async def lottery(ctx):
     global voice_channel
+    can_get = ["4star", "3star", "2star"]
+
     if not ctx.message.author.voice:
         pass
     else:
@@ -565,44 +566,28 @@ async def lottery(ctx):
         pass
     server = ctx.message.guild
     voice_channel = server.voice_client
-    a = sample(range(1, 1000), 145)
-    b = []
-    for i in range(85):
-        b.append(a[i])
-    for i in range(85):
-        a.remove(b[i])
-    gt = randint(1, 1000)
-    if gt in a:
-        image_names = list(walk("D:/Discordbot/4star/"))[0][2]
-        selected_images =choices(image_names)
-        file = discord.File(f"D:/Discordbot/4star/{selected_images[0]}")
-        await ctx.send(f"<@{ctx.author.id}>")
-        await ctx.send(file=file)
+    star=((choices(can_get, weights=[3, 85, 885])))
+
+    image_names = list(walk(f"D:/Discordbot/{star[0]}/"))[0][2]
+    selected_images = choices(image_names)
+    file = discord.File(f"D:/Discordbot/{star[0]}/{selected_images[0]}")
+    await ctx.send(f"<@{ctx.author.id}>")
+    await ctx.send(file=file)
+    if star==["4star"]:
         try:
             voice = ctx.voice_client
-            voice.play(discord.FFmpegPCMAudio(choice(vocal_Congratulations)),after=lambda e: print('Player error: %s' % e) if e else None)
+            voice.play(discord.FFmpegPCMAudio(choice(vocal_Congratulations)),
+                       after=lambda e: print('Player error: %s' % e) if e else None)
         except:
             pass
-    elif gt in b:
-        image_names = list(walk("D:/Discordbot/3star/"))[0][2]
-        selected_images = choices(image_names)
-        file = discord.File(f"D:/Discordbot/3star/{selected_images[0]}")
-        await ctx.send(f"<@{ctx.author.id}>")
-        await ctx.send(file=file)
-
-    else:
-        image_names = list(walk("D:/Discordbot/2star/"))[0][2]
-        selected_images = choices(image_names)
-        file = discord.File(f"D:/Discordbot/2star/{selected_images[0]}")
-        await ctx.send(f"<@{ctx.author.id}>")
-        await ctx.send(file=file)
-
 
 
 @client.command(name='lottery*10', help='get a lottery from project sekai 10 times')
 async def 十抽(ctx):
     global voice_channel
+    can_get = ["4star", "3star", "2star"]
     get=[]
+
     if not ctx.message.author.voice:
         pass
     else:
@@ -614,29 +599,12 @@ async def 十抽(ctx):
         pass
     server = ctx.message.guild
     voice_channel = server.voice_client
-    a = sample(range(1, 1000), 115)
-    b = []
-    gtl=[]
-    for i in range(85):
-        b.append(a[i])
-    for i in range(85):
-        a.remove(b[i])
-    for i in range(10):
-        gt = randint(1, 1000)
-        if gt in a:
-            gtl.append("4star")
-        elif gt in b:
-            gtl.append("3star")
-        else:
-            gtl.append("2star")
-
+    gtl=(choices(can_get, weights=[3, 8.5, 88.5],k=10))
+    start_time=time()
     if "4star"and"3star"not in gtl:
         replace=randint(0,9)
-        gt = randint(1, 100)
-        if 1<=gt<=3:
-            gtl[replace]=("4star")
-        else:
-            gtl[replace]=("3star")
+        can_get = ["4star", "3star"]
+        gtl[replace]=(((choices(can_get, weights=[3, 97 ]))))[0]
     if "4star" in gtl:
         message=await ctx.send(f"<@{ctx.author.id}>\n<:4star:828160732318138389> ")
     else:
@@ -665,6 +633,8 @@ async def 十抽(ctx):
     embed.set_image(url="attachment://image.png")
     await message.edit(embed=embed)
     await ctx.send(file=file)
+    end_time=time()
+    print(end_time-start_time)
 
     if "4star" in gtl:
         try:

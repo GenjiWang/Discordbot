@@ -2,14 +2,13 @@ import discord
 from discord.ext import commands, tasks
 from youtube_dl import  utils,YoutubeDL
 from time import ctime,time
-from random import sample,randint,choices
-from random import choice
+from random import randint,choices,choice
 from asyncio import get_event_loop,sleep
 import urllib.request as req
 from bs4 import BeautifulSoup
-
-from os import path, remove,walk
+from os import  remove,walk
 from PIL import Image
+import re
 intents=discord.Intents.all()
 
 
@@ -33,10 +32,10 @@ ffmpeg_options = {'options': '-vn'}
 
 ytdl = YoutubeDL(ytdl_format_options)
 
-status = ['等待指令中!', '正在和william玩', 'Sleeping!']
+status = "Happy new year"
 queue = []
 loop = False
-is_playing=False
+is_playing = False
 voice_lentage=0
 time_start=0
 value=1.0
@@ -44,11 +43,13 @@ time_end=0
 vocal_hello=["D:/聲音樣本/hello2.wav","D:/聲音樣本/hello4.wav"]
 vocal_i_got_this=["D:/聲音樣本/i got this2.wav","D:/聲音樣本/i got this.wav","D:/聲音樣本/i got this3.wav"]
 vocal_Congratulations=["D:/聲音樣本/恭喜1.wav","D:/聲音樣本/恭喜.wav"]
-voice_channel=0
-sorted=""
-player=""
-pausing=False
-already_play=0
+voice_channel = 0
+sorted = ""
+player = ""
+pausing = False
+already_play = 0
+pick = False
+amount = 0
 
 
 
@@ -82,7 +83,8 @@ client = commands.Bot(command_prefix=';;',intents=intents)
 
 @tasks.loop(seconds=20)
 async def change_status():
-    await client.change_presence(activity=discord.Game(choice(status)))
+
+    await client.change_presence(activity=discord.Game(status))
 
 @tasks.loop(seconds=30)
 async def new_chart_announcement():
@@ -167,36 +169,29 @@ async def tine_to_do():
     time_now1 = time_now[3]
 
 
-    if '22:00:0'in time_now1:
+    if '23:00:0'in time_now1:
         channel = client.get_channel(844419400589115403)
-        await channel.send('歐逆醬該去睡覺了')
+        await channel.send('歐逆醬該睡了喔')
         await channel.send('<:miku_sleep:852886846119608340>')
         channel = client.get_channel(839784321191772251)
-        await channel.send('歐逆醬該去睡覺了')
+        await channel.send('歐逆醬該睡了喔')
         await channel.send('<:miku_sleep:852886846119608340>')
         channel = client.get_channel(913080900114341959)
-        await channel.send('歐逆醬該睡了')
+        await channel.send('歐逆醬該睡了喔')
         await channel.send('<:miku_sleep:852886846119608340>')
         await sleep(10)
     if '07:00:0'in time_now1:
         channel = client.get_channel(844419400589115403)
-        await channel.send('早安阿歐逆醬')
+        await channel.send('早安歐逆醬')
         await channel.send('<:good_morning:852914114233761832>')
         channel = client.get_channel(839784321191772251)
-        await channel.send('早安阿歐逆醬')
+        await channel.send('早安歐逆醬')
         await channel.send('<:good_morning:852914114233761832>')
         channel = client.get_channel(913080900114341959)
         await channel.send('早安歐逆醬')
         await channel.send('<:good_morning:852914114233761832>')
         await sleep(10)
-    if '03:00:0'in time_now1:
-        channel = client.get_channel(844419400589115403)
-        await channel.send('歐逆醬這個時間還在做甚麼呢?\n深夜台嗎?都不揪的喔')
-        channel = client.get_channel(839784321191772251)
-        await channel.send('歐逆醬這個時間還在做甚麼呢?\n深夜台嗎?都不揪的喔')
-        channel = client.get_channel(913080900114341959)
-        await channel.send('好棒\n三點了')
-        await sleep(10)
+
 
 
 @client.event
@@ -230,14 +225,28 @@ async def on_voice_state_update(member, before, after):
         already_play=0
         loop=False
 
+@client.event
+async def on_member_join(member):
+    print(member)
+    print(type(member))
+    await member.send(f'你好{member.mention}!準備好和Miku玩了嗎? 歐逆醬請用`;;help`查詢怎麼玩弄我')
 
 @client.event
 async def on_message(msg):
+    global pick
+    global amount
+
     if ";" in msg.content:
         pass
     else:
+        if pick != True and msg.channel.id==913080900114341959:
+            give = randint(1, 20)
+            if give == 10:
+                amount = randint(1, 20)
+                await msg.channel.send(f"出現了{amount}顆<:4star:828160732318138389> 請使用;;pick來取得")
+                pick = True
         line = msg.content
-        line_split=line.split()
+        line_split = line.split()
         if client.user.mentioned_in(msg) and not msg.author.bot:
             await msg.channel.send("<:ping:832925542768443402><:kanade_ping:837493288504262707><a:FKping:852459756039962634><:snow_ping:852742564582129675>")
 
@@ -248,23 +257,64 @@ async def on_message(msg):
             await msg.channel.send('<a:emoji_32:836411269237702656>')
 
         if "課長" in msg.content and not msg.author.bot:
-            await msg.channel.send('<:giftcard:828158809808699402><a:burndiamond:853952516765253652><a:emoji_32:836411269237702656>')
+            await msg.channel.send(
+                '<:giftcard:828158809808699402><a:burndiamond:853952516765253652><a:emoji_32:836411269237702656>')
 
         if "暴死" in msg.content and not msg.author.bot:
             await msg.channel.send('<a:eat_diamond:852885172583923762>')
     await client.process_commands(msg)
 
+@client.command(name="pick")
+async def pick(ctx):
+    global pick
+    if pick!=False:
+        pick=False
+        pick_file = open("pick.txt", "r")
+        pick_deta = pick_file.read()
+        pick_deta = eval(pick_deta)
+        pick_file.close()
 
-@client.event
-async def on_member_join(member):
-    print(member)
-    print(type(member))
-    await member.send(f'你好{member.mention}!準備好和Miku玩了嗎? 歐逆醬請用`;;help`查詢怎麼玩弄我')
-
+        if ctx.author.id not in pick_deta:
+            pick_deta[ctx.author.id]=amount
+        else:
+            pick_deta[ctx.author.id]=amount+pick_deta[ctx.author.id]
+        await ctx.send(f"<@{ctx.author.id}> 你已獲得{amount}顆<:4star:828160732318138389>現在你已獲得\n總共擁有{pick_deta[ctx.author.id]}顆")
+        pick_file = open("pick.txt", "w")
+        pick_file.write(str(pick_deta))
+        pick_file.close()
 
 @client.command(name='ping', help='看你家網路有多爛(沒')
 async def ping(ctx):
     await ctx.send(f'你的網路延遲是: {round(client.latency * 1000)}ms')
+
+@client.command(name="give",help="轉移你的彩球")
+async def give(ctx,id,amount):
+
+   pick_file = open("pick.txt", "r")
+   pick_deta = pick_file.read()
+   pick_deta = eval(pick_deta)
+   pick_file.close()
+
+   if pick_deta[ctx.author.id] < int(amount):
+       await ctx.send(f"<@{ctx.author.id}>你的<:4star:828160732318138389>不足")
+   else:
+       to_give_user_id = re.findall(r"\d+\.?\d*", id)
+       to_give_user_id = int(to_give_user_id[0])
+       if to_give_user_id not in pick_deta:
+            pick_deta[to_give_user_id]=0
+
+       pick_deta[ctx.author.id] -= int(amount)
+       pick_deta[to_give_user_id] += int(amount)
+
+       await ctx.send(f"<@{ctx.author.id}> 你已給 {id} {amount}顆<:4star:828160732318138389>\n 現在你剩{pick_deta[ctx.author.id]}顆")
+
+       pick_file = open("pick.txt", "w")
+       pick_file.write(str(pick_deta))
+       pick_file.close()
+
+
+
+
 
 
 @client.command(name='hello', help='miku安安')
@@ -297,6 +347,22 @@ async def join(ctx):
     voice = ctx.voice_client
     voice.play(discord.FFmpegPCMAudio(choice(vocal_hello)), after=lambda e: print('Player error: %s' % e) if e else None)
 
+@client.command(name="mute")
+@commands.has_permissions(manage_messages=True)
+async def mute(ctx, member: discord.Member, *, reason=None):
+    guild = ctx.guild
+    mutedRole = discord.utils.get(guild.roles, name="Muted")
+
+    if not mutedRole:
+        mutedRole = await guild.create_role(name="Muted")
+
+        for channel in guild.channels:
+            await channel.set_permissions(mutedRole, speak=False, send_messages=False, read_message_history=False , view_channel=False)
+    embed = discord.Embed(title="muted", description=f"{member.mention} was muted ", colour=discord.Colour.light_gray())
+    embed.add_field(name="reason:", value=reason, inline=False)
+    await ctx.send(embed=embed)
+    await member.add_roles(mutedRole, reason=reason)
+    await member.send(f" you have been muted from: {guild.name} reason: {reason}")
 
 @client.command(name='leave', help='讓miku停止唱歌並離開語音頻道')
 async def leave(ctx):
@@ -524,7 +590,6 @@ async def queue_(ctx, url):
         queue.append(url)
         await ctx.send(f'`{url}`我已經收到主人需求!')
         await YTDLSource.from_url(url, loop=client.loop)
-        sleep(0.5)
         if ctx.message.author.voice:
             voice = ctx.voice_client
             try:
@@ -589,6 +654,7 @@ async def rank(ctx):
 @client.command(name="抽卡",help="讓miku決定你是非洲人還是歐洲人")
 async def 抽卡(ctx):
     global voice_channel
+    can_get = ["4star", "3star", "2star"]
 
     if not ctx.message.author.voice:
         pass
@@ -600,44 +666,30 @@ async def 抽卡(ctx):
         pass
     server = ctx.message.guild
     voice_channel = server.voice_client
-    a = sample(range(1, 1000), 115)
-    b = []
-    for i in range(85):
-        b.append(a[i])
-    for i in range(85):
-        a.remove(b[i])
-    gt = randint(1, 1000)
-    if gt in a:
-        image_names = list(walk("D:/Discordbot/4star/"))[0][2]
-        selected_images = choices(image_names)
-        file = discord.File(f"D:/Discordbot/4star/{selected_images[0]}")
-        await ctx.send(f"<@{ctx.author.id}>")
-        await ctx.send(file=file)
+    star = ((choices(can_get, weights=[3, 85, 885])))
+
+    image_names = list(walk(f"D:/Discordbot/{star[0]}/"))[0][2]
+    selected_images = choices(image_names)
+    file = discord.File(f"D:/Discordbot/{star[0]}/{selected_images[0]}")
+    await ctx.send(f"<@{ctx.author.id}>")
+    await ctx.send(file=file)
+    if star == ["4star"]:
         try:
             voice = ctx.voice_client
             voice.play(discord.FFmpegPCMAudio(choice(vocal_Congratulations)),
                        after=lambda e: print('Player error: %s' % e) if e else None)
         except:
             pass
-    elif gt in b:
-        image_names = list(walk("D:/Discordbot/3star/"))[0][2]
-        selected_images = choices(image_names)
-        file = discord.File(f"D:/Discordbot/3star/{selected_images[0]}")
-        await ctx.send(f"<@{ctx.author.id}>")
-        await ctx.send(file=file)
 
-    else:
-        image_names = list(walk("D:/Discordbot/2star/"))[0][2]
-        selected_images = choices(image_names)
-        file = discord.File(f"D:/Discordbot/2star/{selected_images[0]}")
-        await ctx.send(f"<@{ctx.author.id}>")
-        await ctx.send(file=file)
 
 
 @client.command(name='十抽', help='讓miku抽十次看你是真歐洲還是真非洲')
+
 async def 十抽(ctx):
     global voice_channel
+    can_get = ["4star", "3star", "2star"]
     get=[]
+
     if not ctx.message.author.voice:
         pass
     else:
@@ -649,29 +701,12 @@ async def 十抽(ctx):
         pass
     server = ctx.message.guild
     voice_channel = server.voice_client
-    a = sample(range(1, 1000), 115)
-    b = []
-    gtl=[]
-    for i in range(85):
-        b.append(a[i])
-    for i in range(85):
-        a.remove(b[i])
-    for i in range(10):
-        gt = randint(1, 1000)
-        if gt in a:
-            gtl.append("4star")
-        elif gt in b:
-            gtl.append("3star")
-        else:
-            gtl.append("2star")
+    gtl=(choices(can_get, weights=[3, 8.5, 88.5],k=10))
 
     if "4star"and"3star"not in gtl:
         replace=randint(0,9)
-        gt = randint(1, 100)
-        if 1<=gt<=3:
-            gtl[replace]=("4star")
-        else:
-            gtl[replace]=("3star")
+        can_get = ["4star", "3star"]
+        gtl[replace]=(((choices(can_get, weights=[3, 97 ]))))[0]
     if "4star" in gtl:
         message=await ctx.send(f"<@{ctx.author.id}>\n<:4star:828160732318138389> ")
     else:
@@ -682,6 +717,7 @@ async def 十抽(ctx):
         selected_images = choices(image_names)
         selected_images=Image.open(f"D:/Discordbot/{card}/{selected_images[0]}")
         get.append(selected_images)
+
 
     target = Image.new('RGB', (128 * 5, 128 * 2))
     for row in range(2):
@@ -699,7 +735,6 @@ async def 十抽(ctx):
     embed.set_image(url="attachment://image.png")
     await message.edit(embed=embed)
     await ctx.send(file=file)
-
     if "4star" in gtl:
         try:
             voice = ctx.voice_client
