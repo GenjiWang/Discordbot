@@ -307,7 +307,7 @@ async def give(ctx,id,amount):
        pick_deta[to_give_user_id] += int(amount)
 
        await ctx.send(f"<@{ctx.author.id}> 你已給 {id} {amount}顆<:4star:828160732318138389>\n 現在你剩{pick_deta[ctx.author.id]}顆")
-
+       
        pick_file = open("pick.txt", "w")
        pick_file.write(str(pick_deta))
        pick_file.close()
