@@ -1,6 +1,7 @@
+#import區
 import discord
 from discord.ext import commands, tasks
-from youtube_dl import  utils,YoutubeDL
+from youtube_dl import utils,YoutubeDL
 from time import ctime,time
 from random import randint,choices,choice
 from asyncio import get_event_loop,sleep
@@ -9,6 +10,8 @@ from bs4 import BeautifulSoup
 from os import  remove,walk
 from PIL import Image
 import re
+import json
+
 intents=discord.Intents.all()
 
 
@@ -32,6 +35,7 @@ ffmpeg_options = {'options': '-vn'}
 
 ytdl = YoutubeDL(ytdl_format_options)
 
+#全域變數區
 status = "Happy new year"
 queue = []
 loop = False
@@ -51,8 +55,7 @@ already_play = 0
 pick = False
 amount = 0
 
-
-
+#bot設定區
 class YTDLSource(discord.PCMVolumeTransformer):
     def __init__(self, source, *, data):
         global value
@@ -61,7 +64,6 @@ class YTDLSource(discord.PCMVolumeTransformer):
         self.data = data
         self.title = data.get('title')
         self.url = data.get('url')
-
 
     @classmethod
     async def from_url(cls, url, *, loop=None, stream=False):
@@ -78,12 +80,21 @@ def is_connected(ctx):
     voice_client = ctx.message.guild.voice_client
     return voice_client and voice_client.is_connected()
 
-
 client = commands.Bot(command_prefix=';;',intents=intents)
+
+@client.event
+async def on_ready():
+    try:
+        change_status.start()
+        get_rank.start()
+        tine_to_do.start()
+        new_chart_announcement.start()
+        print('Bot is online!')
+    except:
+        print('Bot is online!')
 
 @tasks.loop(seconds=20)
 async def change_status():
-
     await client.change_presence(activity=discord.Game(status))
 
 @tasks.loop(seconds=30)
@@ -122,6 +133,7 @@ async def new_chart_announcement():
         outFile.write(sliced_root)
         outFile.close()
 
+#排名查詢區
 @tasks.loop(seconds=600)
 async def get_rank():
     global sorted
@@ -159,6 +171,10 @@ async def get_rank():
     time_now = time_now.split()
     sorted=sorted+f"Update at{time_now[2]} {time_now[3]}"
 
+@client.command(name="rank",help=("顯示目前本期project sekai的活動排名"))
+async def rank(ctx):
+    global sorted
+    await ctx.send(f"```{sorted}```")
 
 
 
@@ -167,8 +183,6 @@ async def tine_to_do():
     time_now = ctime()
     time_now= time_now.split()
     time_now1 = time_now[3]
-
-
     if '23:00:0'in time_now1:
         channel = client.get_channel(844419400589115403)
         await channel.send('歐逆醬該睡了喔')
@@ -192,45 +206,14 @@ async def tine_to_do():
         await channel.send('<:good_morning:852914114233761832>')
         await sleep(10)
 
-
-
-@client.event
-async def on_ready():
-    try:
-        change_status.start()
-        get_rank.start()
-        tine_to_do.start()
-        new_chart_announcement.start()
-        print('Bot is online!')
-    except:
-        pass
-
-
-
-@client.event
-async def on_voice_state_update(member, before, after):
-    global queue
-    global voice_channel
-    global is_playing
-    global pausing
-    global already_play
-    global loop
-    vc = before.channel
-
-    if vc is not None and after.channel is None and len(vc.members) == 1:
-        await voice_channel.disconnect()
-        queue = []
-        is_playing=False
-        pausing=False
-        already_play=0
-        loop=False
-
+#來賓好
 @client.event
 async def on_member_join(member):
     print(member)
     print(type(member))
     await member.send(f'你好{member.mention}!準備好和Miku玩了嗎? 歐逆醬請用`;;help`查詢怎麼玩弄我')
 
+#聊天觸發
 @client.event
 async def on_message(msg):
     global pick
@@ -264,37 +247,30 @@ async def on_message(msg):
             await msg.channel.send('<a:eat_diamond:852885172583923762>')
     await client.process_commands(msg)
 
+#彩球使用區
 @client.command(name="pick")
 async def pick(ctx):
     global pick
     if pick!=False:
-        pick_file = open("pick.txt", "r")
-        pick_deta = pick_file.read()
-        pick_deta = eval(pick_deta)
-        pick_file.close()
+        pick = False
+        with open('pick.json', 'r', encoding='utf-8') as f:
+            pick_deta = json.load(f)
 
-        if ctx.author.id not in pick_deta:
-            pick_deta[ctx.author.id]=amount
+        if str(ctx.author.id) not in pick_deta:
+            pick_deta[str(ctx.author.id)]=amount
         else:
-            pick_deta[ctx.author.id]=amount+pick_deta[ctx.author.id]
-        await ctx.send(f"你已獲得{amount}顆<:4star:828160732318138389>現在你已獲得\n總共擁有{pick_deta[ctx.author.id]}顆")
-        pick_file = open("pick.txt", "w")
-        pick_file.write(str(pick_deta))
-        pick_file.close()
+            pick_deta[str(ctx.author.id)]=amount+pick_deta[str(ctx.author.id)]
+        await ctx.send(f"你已獲得{amount}顆<:4star:828160732318138389>現在你已獲得\n總共擁有{pick_deta[str(ctx.author.id)]}顆")
+        with open('pick.json', 'w', encoding='utf-8') as f:
+            json.dump(pick_deta, f)
 
-        pick=False
-@client.command(name='ping', help='看你家網路有多爛(沒')
-async def ping(ctx):
-    await ctx.send(f'你的網路延遲是: {round(client.latency * 1000)}ms')
 
-@client.command(name="give",help="轉移你的彩球")
-async def give(ctx,id,amount):
-    pick_file = open("pick.txt", "r")
-    pick_deta = pick_file.read()
-    pick_deta = eval(pick_deta)
-    pick_file.close()
+@client.command(name="give", help="轉移你的彩球")
+async def give(ctx, id, amount):
+    with open('pick.json', 'r', encoding='utf-8') as f:
+        pick_deta = json.load(f)
     try:
-        if pick_deta[ctx.author.id] < int(amount):
+        if pick_deta[str(ctx.author.id)] < int(amount):
             await ctx.send(f"<@{ctx.author.id}>你的<:4star:828160732318138389>不足")
             return 0
         if int(amount) < 0:
@@ -302,30 +278,40 @@ async def give(ctx,id,amount):
             return 0
         else:
             to_give_user_id = re.findall(r"\d+\.?\d*", id)
-            to_give_user_id = int(to_give_user_id[0])
+            to_give_user_id = str(to_give_user_id[0])
             if to_give_user_id not in pick_deta:
                 pick_deta[to_give_user_id] = 0
 
-            pick_deta[ctx.author.id] -= int(amount)
+            pick_deta[str(ctx.author.id)] -= int(amount)
             pick_deta[to_give_user_id] += int(amount)
 
             await ctx.send(
-                f"<@{ctx.author.id}> 你已給 {id} {amount}顆<:4star:828160732318138389>\n 現在你剩{pick_deta[ctx.author.id]}顆")
+                f"<@{ctx.author.id}> 你已給 {id} {amount}顆<:4star:828160732318138389>\n 現在你剩{pick_deta[str(ctx.author.id)]}顆")
 
-            pick_file = open("pick.txt", "w")
-            pick_file.write(str(pick_deta))
-            pick_file.close()
+            with open('pick.json', 'w', encoding='utf-8') as f:
+                json.dump(pick_deta, f)
     except:
         await ctx.send(f"<@{ctx.author.id}>你目前沒有<:4star:828160732318138389>")
 
 
+#語音+點歌區
+@client.event
+async def on_voice_state_update(member, before, after):
+    global queue
+    global voice_channel
+    global is_playing
+    global pausing
+    global already_play
+    global loop
+    vc = before.channel
 
-
-
-
-
-
-
+    if vc is not None and after.channel is None and len(vc.members) == 1:
+        await voice_channel.disconnect()
+        queue = []
+        is_playing=False
+        pausing=False
+        already_play=0
+        loop=False
 
 @client.command(name='hello', help='miku安安')
 async def hello(ctx):
@@ -334,11 +320,6 @@ async def hello(ctx):
         voice.play(discord.FFmpegPCMAudio(choice(vocal_hello)),after=lambda e: print('Player error: %s' % e) if e else None)
     else:
         await ctx.send('歐逆醬安安')
-
-
-@client.command(name='developer', help='讓你知道Miku的開發者')
-async def credits(ctx):
-    await ctx.send('Made by 柑橘Wang\nDebug by 美味的小圓,Python Taiwan,SHELTER ZONE\nVocal by 初音ミク')
 
 
 
@@ -357,22 +338,6 @@ async def join(ctx):
     voice = ctx.voice_client
     voice.play(discord.FFmpegPCMAudio(choice(vocal_hello)), after=lambda e: print('Player error: %s' % e) if e else None)
 
-@client.command(name="mute")
-@commands.has_permissions(manage_messages=True)
-async def mute(ctx, member: discord.Member, *, reason=None):
-    guild = ctx.guild
-    mutedRole = discord.utils.get(guild.roles, name="Muted")
-
-    if not mutedRole:
-        mutedRole = await guild.create_role(name="Muted")
-
-        for channel in guild.channels:
-            await channel.set_permissions(mutedRole, speak=False, send_messages=False, read_message_history=False , view_channel=False)
-    embed = discord.Embed(title="muted", description=f"{member.mention} was muted ", colour=discord.Colour.light_gray())
-    embed.add_field(name="reason:", value=reason, inline=False)
-    await ctx.send(embed=embed)
-    await member.add_roles(mutedRole, reason=reason)
-    await member.send(f" you have been muted from: {guild.name} reason: {reason}")
 
 @client.command(name='leave', help='讓miku停止唱歌並離開語音頻道')
 async def leave(ctx):
@@ -654,13 +619,7 @@ async def skip(ctx):
     time_start = time()
     voice_lentage=dictMeta['duration']
 
-
-@client.command(name="rank",help=("顯示目前本期project sekai的活動排名"))
-async def rank(ctx):
-    global sorted
-    await ctx.send(f"```{sorted}```")
-
-
+#抽卡區
 @client.command(name="抽卡",help="讓miku決定你是非洲人還是歐洲人")
 async def 抽卡(ctx):
     global voice_channel
@@ -758,6 +717,34 @@ async def 歐洲人(ctx):
     gtl= ["<:4star:828160732318138389>"*10]
     await ctx.send(f"<@{ctx.author.id}>\n{gtl}")
 
+
+#雜項區
+@client.command(name='developer', help='讓你知道Miku的開發者')
+async def credits(ctx):
+    await ctx.send('Made by 柑橘Wang\nDebug by 美味的小圓,Python Taiwan,SHELTER ZONE\nVocal by 初音ミク')
+
+@client.command(name='ping', help='看你家網路有多爛(沒')
+async def ping(ctx):
+    await ctx.send(f'你的網路延遲是: {round(client.latency * 1000)}ms')
+
+
+#管理員指令區
+@client.command(name="mute")
+@commands.has_permissions(manage_messages=True)
+async def mute(ctx, member: discord.Member, *, reason=None):
+    guild = ctx.guild
+    mutedRole = discord.utils.get(guild.roles, name="Muted")
+
+    if not mutedRole:
+        mutedRole = await guild.create_role(name="Muted")
+
+        for channel in guild.channels:
+            await channel.set_permissions(mutedRole, speak=False, send_messages=False, read_message_history=False , view_channel=False)
+    embed = discord.Embed(title="muted", description=f"{member.mention} was muted ", colour=discord.Colour.light_gray())
+    embed.add_field(name="reason:", value=reason, inline=False)
+    await ctx.send(embed=embed)
+    await member.add_roles(mutedRole, reason=reason)
+    await member.send(f" you have been muted from: {guild.name} reason: {reason}")
 
 
 
