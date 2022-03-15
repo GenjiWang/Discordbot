@@ -100,39 +100,31 @@ async def change_status():
 @tasks.loop(seconds=30)
 async def new_chart_announcement():
     url = "https://servers.purplepalette.net/levels/list"
+    img_base_url = "https://servers.purplepalette.net"
     request = req.Request(url, headers=
     {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.101 Safari/537.36"
     })
+
     with req.urlopen(request) as response:
         data = response.read().decode("utf-8")
     root = BeautifulSoup(data, "html.parser")
-    outFile = open("D:/Discordbot/chart.txt", "r", encoding="utf-8")
-    text = outFile.read()
-    outFile.close()
     root = root.prettify()
-    str1 = root[root.find("\"useSkin\""):]
-    str2 = root[root.find('mp3"},"data":'):]
-
-    round_count = len(str1) - len(str2)
-    sliced_root = "{"
-    for i in range(round_count):
-        sliced_root = sliced_root + str1[i]
-    sliced_root = sliced_root + "\"}}"
-    sliced_root = sliced_root.replace("true", "True")
-    data = eval(sliced_root)
-    if sliced_root != text:
-        embed = discord.Embed(title="新譜面通知", url="https://potato.purplepalette.net/", color=0x0dc6d3)
-        embed.set_thumbnail(url=f"https://servers.purplepalette.net{data['cover']['url']}")
-        embed.add_field(name="譜面", value=data['title'], inline=False)
-        embed.add_field(name="音樂作者", value=data['artists'], inline=False)
-        embed.add_field(name="譜師", value=data['author'], inline=False)
-        channel = client.get_channel(913080900114341959)
+    with open('chart.json', 'r', encoding='utf-8') as f:
+        last_chart = json.load(f)
+    root = root.replace("true", "True")
+    root = eval(root)
+    if root != last_chart:
+        embed = discord.Embed(title="New chart announcement ", url="https://potato.purplepalette.net/", color=0x0dc6d3)
+        embed.set_thumbnail(url=f"{img_base_url}{root['items'][0]['cover']['url']}")
+        print(f"{img_base_url}{root['items'][0]['cover']['url']}")
+        embed.add_field(name="New chart", value=root['items'][0]['title'], inline=False)
+        embed.add_field(name="Artists", value=root['items'][0]['artists'], inline=False)
+        embed.add_field(name="Author", value=root['items'][0]['author'], inline=False)
+        channel = client.get_channel(855263100076425256)
         await channel.send(embed=embed)
-        outFile = open("D:/Discordbot/chart.txt", "w", encoding="utf-8")
-        outFile.write(sliced_root)
-        outFile.close()
-
+        with open('chart.json', 'w', encoding='utf-8') as f:
+            json.dump(root, f)
 #排名查詢區
 @tasks.loop(seconds=600)
 async def get_rank():
